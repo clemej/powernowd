@@ -1,0 +1,43 @@
+#!/bin/bash
+# 
+# This is a simple example script to show how one could control powernowd
+# with one simple command.  it could be adapted to be used as an init script. 
+#
+# It unserstands "stop", "start", "restart", and these other commands:
+# 	"dyn"   turn on dynamic control (alias to start, aka, run the daemon)
+#	"high"	kill daemon, set cpu to high speed.
+#	"low" 	kill daemon, set cpu to low speed.
+#
+
+OPTIONS=""
+
+if [ "$1" = "start" -o "$1" = "restart" -o "$1" = "dyn" ]; then
+	killall -15 powernowd >& /dev/null 
+	/usr/sbin/powernowd $OPTIONS
+	exit
+fi
+
+if [ "$1" = "stop" ]; then
+	killall -15 powernowd >& /dev/null
+	exit
+fi
+
+if [ "$1" = "high" -o "$1" = "low" ]; then
+	killall -15 powernowd >& /dev/null
+	for i in `/bin/ls /sys/devices/system/cpu/`; do 
+		pushd . >& /dev/null
+		cd /sys/devices/system/cpu/$i/cpufreq
+		if [ "$1" = "low" ]; then
+			cat scaling_min_freq > scaling_setspeed
+		else
+			cat scaling_max_freq > scaling_setspeed
+		fi
+		popd >& /dev/null
+	done
+	exit
+fi
+
+echo "Unrecognised option \"$1\""
+exit
+		
+		

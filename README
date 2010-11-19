@@ -1,0 +1,205 @@
+PowerNow Daemon, (c) 2003-2008 John Clemens
+Daemon to control the speed and voltage of CPUs.
+
+This is a simple client to the CPUFreq driver that uses Linux kernel v2.5/v2.6 
+sysfs interface.  You need a supported CPU and a kernel that supports 
+sysfs to run this daemon.  The name is somewhat misleading, as this will work
+with any CPUfreq capable processor, not just processors supporting AMD's 
+PowerNow! technology.  However, it is designed to work better on processors 
+that support more then 2 frequency steps like those with AMD's PowerNow! or the
+new Pentium M processors. 
+
+This daemon has been tested on:
+	AMD Mobile Duron 850MHz
+	PowerPC G3 900MHz
+	AMD K6-2+ 450MHz
+	AMD Athlon64 3000+
+	AMD Athlon X2 3800+
+
+I have gotten successful reports of people running this on:
+	SMP Intel P4-m (speedstep, hyperthreading)
+	Intel P3
+	Intel Pentium-M
+	
+Because there's really nothing AMD-specific about this daemon, I should
+change the name, but i probably won't, it's too well known now.
+
+COMPILING:
+----------
+
+cd powernowd-x.xx/
+make
+
+(then, as root)
+make install
+
+This will make the binary and install it in /usr/sbin with permissions "755".
+
+USAGE:
+------
+
+As root:
+
+	powernowd <options>
+
+Available Options:
+	-h	print help message
+	-d	don't detach from terminal (default is to
+		detach and run in the background)
+	-v	Increase output verbosity, can be used more than once. 
+	-q	Quiet mode, only emergency output.
+	-n	Include 'nice'd processes in calculations
+	-m #	Modes of operation, can be 0, 1, 2, or 3:
+		0 = SINE, 1 = AGGRESSIVE (default), 2 = PASSIVE, 3 = LEAPS
+	-s #	Frequency step in kHz (default = 100000)
+	-p #	Polling frequency in msecs (default = 1000)
+	-u #	CPU usage upper limit percentage [0 .. 100, default 80]
+	-l #    CPU usage lower limit percentage [0 .. 100, default 20]
+
+
+MODES:
+------
+
+There are 4 modes supported by this client:
+
+Mode 0, SINE : Changes the frequency as a sine wave function, raising the 
+               frequency by "step" Hz every time the CPU usage goes over 80%,
+	       and decreases it by "step" Hz when the CPU usage falls under
+	       20%.
+Mode 1, AGGRESSIVE : Changes frequency by a sawtooth function.	Immediately
+		     jumps to the highest frequency whenever CPU usage goes 
+		     over 80%, and decreases by "step" Hz as it drops below
+		     20%.  This is the default behavior as I've found it to
+		     give the best results.
+Mode 2, PASSIVE : The inverse of AGGRESSIVE. Immediately jump to lowest 
+		  frequency when usage drops below 20%. Raise by "step" Hz
+		  if it goes above 80%.
+Mode 3, LEAPS :	Immediately jump to the highest frequency if usage above 80%.
+		Immediately jump to the lowest frequency if usage below 20%.
+
+
+PAUSING:
+--------
+
+PAUSING was a feature added in v0.85, and removed in v0.90.  You can achieve
+the same behavior by killing the daemon and restarting it, and I felt it 
+wasn't worth the extra complexity and possible security concerns to keep 
+this extra interface.  
+
+PHILOSOPHY:
+-----------
+
+OK, so why ANOTHER CPUFreq client daemon?  There are several others out there,
+and many of them are very good.  So why make another one? Well, there are 
+several reasons.  
+
+* A lot of daemons out there now are much better suited for two speed states, 
+  like Intel's Speedstep technology.  They toggle between two states based upon 
+  load.  I happen to own an AMD Duron w/ PowerNow with several power states, so 
+  I wanted something that would do intermediate steps. 
+
+* Some daemons are written in Perl/python or in C++.  I wanted just a simple C
+  daemon.
+
+* I wrote mine around the time everyone else was writing their's, so there 
+  weren't that many when I started.
+
+* Many of them rely on APM or ACPI and change their behavior based upon 
+  battery status, AC status, temperature, etc.. or other things that I
+  strongly feel are the wrong things to measure.  If I'm using the CPU, I need 
+  it, and if I'm not, I don't.  PowerNowd measures one thing and one thing
+  only; CPU load. It bases its decisions solely upon that.  It doesn't matter 
+  if I'm on battery, or on AC, or whatever.  What good is having a nice 
+  powerful laptop if you can't use it at full speed, even for a few seconds, 
+  while on battery power?  If I desperately wanted longer battery life, I 
+  wouldn't be running a daemon to dynamically control my CPU speed, I'd just 
+  set it to "low".  And, considering most laptops sit idle 99% of the time, the
+  other things will follow anyway.
+
+* The reliance on APM or ACPI makes some other daemons unportable to different
+  architectures, such as PPC or UltraSparc, which support CPUFreq.
+
+* For kicks, I wanted to make one SMP capable, and allow CPUfreq's use in 
+  another useful place... servers.
+
+I did not find any other daemons which met all the above criteria. So I wrote 
+my own.  If you don't agree with the above, look elsewhere.  Or, use my code
+as a starting point for your own endeavors. 
+
+CHANGELOG:
+----------
+
+(7-13-03)
+v0.75	Initial Release
+
+(8-9-03)
+v0.80	Better error reporting/handling (some ideas from Warren Togami 
+          <warren@togami.com>)
+	Added syslog output support
+	Added Makefile, README, LICENSE, etc.
+	Remove find_mount() function (sysfs is supposed to be in /sys)
+	Added -s and -p options to override default frequency step and polling
+	  frequency.
+	Added -u and -l options to override high/low water marks.
+	Fixed bug where we were defaulting to SINE, not AGGRESSIVE. 
+
+(11-30-03)
+v0.85   Better error text, more helpful then "couldn't open file".
+	Fixed a few memory initialization bugs reported by users. 
+	Added -n option to force inclusion of nice'd processes.
+	Added -b option and SIGUSR1/2 support for pausing/restarting the
+	  daemon.  See README, section 'PAUSING'.
+	Added code to handle buggy Athlons, but ifdef'd out because i think
+	  the bug has been fixed, so it isn't needed anymore. 
+	Fixed up a few of my more egregious spelling mistakes (from haste).
+
+(2-8-04)
+v0.90   Added support for drivers (longhaul) which report speed values in 
+	  MHz instead of KHz.
+	Removed -b option and PAUSING support.
+	Removed dead code to work around buggy athlon bios's, the driver now
+	  does this correctly.
+	Added sample powernowd init script to show how to emulate old PAUSE
+	  behavior. 
+	Spell checked the README and web page, finally.
+	Added LEAPs mode and verbosity patches from Hans Ulrich Niedermann.
+	Fixed up verbosity mode/printf/syslog infrastructure.
+
+(2-5-05)
+v0.95   It's been an unacceptably long time between updates, my apologies..
+        it's been an interesting year.
+
+	Added support for scalaing_available_frequencies, and moved to a
+	  table based approach (driver not supporting s_a_f will have a
+	  table built internally based upon detected min/max and step).
+	Proper infrastructure for handling HT (and other SMT/CMP procs).  
+	  UNTESTED.  I hope it works.  Consider this part Beta.
+
+(5-8-05)
+v0.96	Fixed the Centrino (and a few others) bug about "ncpus not a multiple 
+	  of threads_per_core!".. We now just default to 1 if that's the case.
+	Fixed bug on drivers that don't support scaling_available_frequencies
+	  (PPC). 
+	Cleaned up error reporting a bit more.
+
+(2-12-06)
+v0.97	 Better handling of multi-core/HT cpus.
+	 Uses affected_cpus file sysfs file.  
+         Fix Segfault on exit on SMP systems.
+	 Documentation updates. 
+
+(1-27-08)
+v1.00	Cleanups for the 1.00 release.
+	Use strtoll instead of strtol when reading cputime. (from Debian)
+	Valgrind clean.
+
+AUTHOR:
+-------
+
+Written by John Clemens <clemej@alum.rpi.edu>
+
+You can find out more information and download the latest version of
+powernowd from http://www.deater.net/john/powernowd.html
+
+You can find out more information about me at http://www.deater.net/john
+I welcome comments and contributions.

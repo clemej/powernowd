@@ -760,6 +760,7 @@ int main(int argc, char **argv)
 {
 	cpuinfo_t *cpu;
 	int ncpus, i, j, err, num_real_cpus, threads_per_core, cpubase;
+	int ret;
 	enum modes change, change2;
 
 	/* Parse command line args */
@@ -853,16 +854,18 @@ int main(int argc, char **argv)
 		exit(ENOTSUP);
 	}
 	
-	/* so we don't interfere with anything, including ourself */
-	nice(5);
-	
 	if (daemonize)
 		openlog("powernowd", LOG_AUTHPRIV|LOG_PERROR, LOG_DAEMON);
-	
+
 	/* My ego's pretty big... */
 	pprintf(0, PACKAGE_STRING "\n");
 	pprintf(0,"PowerNow Daemon v%s, (c) 2003-2008 John Clemens\n", 
 			VERSION);
+
+	/* so we don't interfere with anything, including ourself */
+	ret = nice(5);
+	if (ret != 5 && ret != 0) 
+		pprintf(1, "Couldn't set niceness value, ignoring\n");
 
 	/* are we root?? */
 	if (getuid() != 0) {
@@ -961,8 +964,11 @@ int main(int argc, char **argv)
 	signal(SIGTERM, terminate);
 	signal(SIGINT, terminate);
 	
-	if (daemonize)
-		daemon(0, 0);
+	if (daemonize) {
+		ret = daemon(0, 0);
+		if (ret)
+			pprintf(1, "daemon() failed\n");
+	}
 
 	start_time = time(NULL);
 

@@ -62,6 +62,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <time.h>
+#include <config.h>
 
 #define pprintf(level, ...) do { \
 	if (level <= verbosity) { \
@@ -859,6 +860,7 @@ int main(int argc, char **argv)
 		openlog("powernowd", LOG_AUTHPRIV|LOG_PERROR, LOG_DAEMON);
 	
 	/* My ego's pretty big... */
+	pprintf(0, PACKAGE_STRING "\n");
 	pprintf(0,"PowerNow Daemon v%s, (c) 2003-2008 John Clemens\n", 
 			VERSION);
 

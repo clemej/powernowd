@@ -107,7 +107,7 @@ typedef struct cpuinfo {
 cpuinfo_t **all_cpus;
 
 /* idea stolen from procps */
-static char buf[1024];
+static char buf[2048];
 
 enum function {
 	SINE,
